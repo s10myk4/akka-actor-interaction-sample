@@ -12,8 +12,8 @@ object CounterA {
 
   sealed trait CounterAReply
 
-  final case class SuccessfulCountUp(num: Int) extends CounterAReply
-  final case class SuccessfulCountDown(num: Int) extends CounterAReply
+  final case class SuccessfulCountUp(num: Int, total: Int) extends CounterAReply
+  final case class SuccessfulCountDown(num: Int, total: Int) extends CounterAReply
 
   case object FailedCountUp extends CounterAReply
   case object FailedCountDown extends CounterAReply
@@ -26,12 +26,12 @@ object CounterA {
         println("CounterA receive CountUp Command", replyTo)
         value = value + num
         val ran = scala.util.Random.nextInt()
-        if (ran % 2 == 0) replyTo ! SuccessfulCountUp(value)
+        if (ran % 2 == 0) replyTo ! SuccessfulCountUp(num, value)
         else replyTo ! FailedCountUp
         Behaviors.same
       case CountDown(num, replyTo) =>
         value = value - num
-        replyTo ! SuccessfulCountDown(value)
+        replyTo ! SuccessfulCountDown(num, value)
         Behaviors.same
     }
   }
@@ -46,8 +46,8 @@ object CounterB {
 
   sealed trait CounterBReply
 
-  final case class SuccessfulCountUp(num: Int) extends CounterBReply
-  final case class SuccessfulCountDown(num: Int) extends CounterBReply
+  final case class SuccessfulCountUp(num: Int, total: Int) extends CounterBReply
+  final case class SuccessfulCountDown(num: Int, total: Int) extends CounterBReply
 
   case object FailedCountUp extends CounterBReply
   case object FailedCountDown extends CounterBReply
@@ -59,11 +59,11 @@ object CounterB {
       case CountUp(num, replyTo) =>
         println("CounterB receive CountUp Command", replyTo)
         value = value + num
-        replyTo ! SuccessfulCountUp(value)
+        replyTo ! SuccessfulCountUp(num, value)
         Behaviors.same
       case CountDown(num, replyTo) =>
         value = value - num
-        replyTo ! SuccessfulCountDown(value)
+        replyTo ! SuccessfulCountDown(num, value)
         Behaviors.same
     }
   }
