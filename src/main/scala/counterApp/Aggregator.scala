@@ -18,12 +18,12 @@ object Aggregator {
       execCommands: ActorRef[Reply] => Unit,
       expectedReplies: Int,
       replyTo: ActorRef[Aggregate],
-      aggregateReplies: List[Reply] => Aggregate,
+      aggregateReplies: Seq[Reply] => Aggregate,
       timeout: Option[FiniteDuration]
   ): Behavior[Command] = Behaviors.setup { context =>
     timeout.foreach(t => context.setReceiveTimeout(t, ReceiveTimeout))
 
-    def collect(replies: List[Reply]): Behavior[Command] = {
+    def collect(replies: Seq[Reply]): Behavior[Command] = {
       Behaviors.receiveMessage {
         case ExecCommands =>
           println("Aggregator receive ExecCommands")
