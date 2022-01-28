@@ -23,11 +23,12 @@ object Main extends App {
 
     for (line <- io.Source.stdin.getLines()) {
       val num = line.toInt
+      require(num > 0)
       refTx
         .ask[TransactionalCountUp.ExternalReply](replyTo => ExecCommands(num, replyTo))
         .onComplete {
           case Success(_: TransactionalCountUp.Success.type) =>
-            println("Success")
+            println(s"Success / counterA: ${CounterA.value} / counterB: ${CounterB.value}")
           case Success(_: TransactionalCountUp.Failed.type) =>
             println("Failed")
           case Failure(ex) =>
