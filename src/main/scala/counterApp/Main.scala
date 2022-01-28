@@ -13,7 +13,7 @@ import scala.util.{ Failure, Success }
 object Main extends App {
 
   def apply(): Behavior[Any] = Behaviors.setup { ctx =>
-    implicit val timeout: Timeout     = Timeout(5.seconds)
+    implicit val timeout: Timeout     = Timeout(10.seconds)
     implicit val s: Scheduler         = ctx.system.scheduler
     implicit val ec: ExecutionContext = ctx.system.executionContext
 
