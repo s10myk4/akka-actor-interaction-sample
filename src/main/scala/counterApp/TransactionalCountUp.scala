@@ -34,10 +34,17 @@ object TransactionalCountUp {
 
   private val expectedReplyNum = 2
 
+  final case class RetryCount(private val value: Int, private val limitNum: Int) {
+    def increment: RetryCount = copy(value = this.value + 1)
+    def canRetry: Boolean     = value <= limitNum
+  }
+  object RetryCount {
+    def init(limitNum: Int): RetryCount = RetryCount(1, limitNum)
+  }
+
   def apply(counterA: ActorRef[CounterACommand], counterB: ActorRef[CounterBCommand]): Behavior[Command] =
     Behaviors.setup { ctx =>
       Behaviors.receiveMessagePartial { case cmd: ExecCommands =>
-        println("TransactionalCountUp receiveMessage ExecCommands")
         val aggregatorRef = spawnAggregator(
           ctx,
           // TODO ExecCommands経由でコマンドを渡せるようにしたいけどreplyToの関係でむずい
@@ -78,7 +85,7 @@ object TransactionalCountUp {
         )
         println("CounterBへコマンドをリトライ", replies)
         aggregatorRef ! Aggregator.ExecCommands
-        retrying(counterA, counterB, cmd.replyTo)
+        retrying(Right(counterB), cmd.num, cmd.replyTo, RetryCount.init(retryLimitNum))
       case AggregateReply(replies)
           if replies.exists(_.isInstanceOf[SuccessfulCounterBReply]) && (replies.length < expectedReplyNum || replies
             .contains(FailedCounterAReply)) =>
@@ -90,47 +97,69 @@ object TransactionalCountUp {
         )
         println("CounterAへコマンドをリトライ", replies)
         aggregatorRef ! Aggregator.ExecCommands
-        retrying(counterA, counterB, cmd.replyTo)
+        retrying(Left(counterA), cmd.num, cmd.replyTo, RetryCount.init(retryLimitNum))
     }
   }
 
-  val retryLimitNum = 3
+  private val retryLimitNum = 3
 
   private def retrying(
-      counterA: ActorRef[CounterACommand],
-      counterB: ActorRef[CounterBCommand],
+      counterRef: Either[ActorRef[CounterACommand], ActorRef[CounterBCommand]],
+      num: Int,
       replyTo: ActorRef[ExternalReply],
-      retryCount: Int = 0
+      retryCount: RetryCount
   ): Behavior[Command] = Behaviors.setup { ctx =>
     Behaviors.receiveMessagePartial {
       case AggregateReply(xs) if xs.forall(_.isInstanceOf[SuccessfulReply]) =>
-        // 成功
-        println("retry success")
+        println("リトライ成功")
         replyTo ! Success
         Behaviors.same
 
       case AggregateReply(xs) if xs.isEmpty =>
-        // タイムアウト
-        if (retryCount <= retryLimitNum) {
-          // 再度リトライ
-          // TODO 1個前に実行したコマンドを覚えてる必要あり
-          retrying(counterA, counterB, replyTo, retryCount + 1)
+        println("タイムアウトで再度リトライ")
+        if (retryCount.canRetry) {
+          val (aggregatorRef, counter) = counterRef match {
+            case Left(counterA) =>
+              (
+                spawnAggregator(ctx, replyTo => counterA ! CounterA.CountUp(num, replyTo), expectedReplies = 1),
+                Left(counterA)
+              )
+            case Right(counterB) =>
+              (
+                spawnAggregator(ctx, replyTo => counterB ! CounterB.CountUp(num, replyTo), expectedReplies = 1),
+                Right(counterB)
+              )
+          }
+          aggregatorRef ! Aggregator.ExecCommands
+          retrying(counter, num, replyTo, retryCount.increment)
         } else {
+          // TODO リトライ失敗した場合にその状態を保存する
           replyTo ! Failed
           Behaviors.same
         }
 
+      // リトライして失敗
       case AggregateReply(head :: tail) if head.isInstanceOf[FailedReply] && tail.isEmpty =>
-        val aggregatorRef = spawnAggregator(
-          ctx,
-          replyTo => {
-            if (head.isInstanceOf[FailedCounterAReply.type]) counterA ! CounterA.CountUp(1, replyTo)
-            else counterB ! CounterB.CountUp(1, replyTo)
-          },
-          expectedReplies = 1
-        )
-        aggregatorRef ! Aggregator.ExecCommands
-        retrying(counterA, counterB, replyTo, retryCount + 1)
+        println("リトライ失敗で再度リトライ")
+        if (retryCount.canRetry) {
+          val (aggregatorRef, counter) = counterRef match {
+            case Left(counterA) =>
+              (
+                spawnAggregator(ctx, replyTo => counterA ! CounterA.CountUp(num, replyTo), expectedReplies = 1),
+                Left(counterA)
+              )
+            case Right(counterB) =>
+              (
+                spawnAggregator(ctx, replyTo => counterB ! CounterB.CountUp(num, replyTo), expectedReplies = 1),
+                Right(counterB)
+              )
+          }
+          aggregatorRef ! Aggregator.ExecCommands
+          retrying(counter, num, replyTo, retryCount.increment)
+        } else {
+          replyTo ! Failed
+          Behaviors.same
+        }
     }
   }
 
