@@ -14,12 +14,11 @@ object CounterA {
 
   case object FailedCountUp extends CounterAReply
 
-  private var value = 0
+  var value = 0
 
   def apply(): Behavior[CounterACommand] = {
     Behaviors.receiveMessage { case CountUp(num, replyTo) =>
       println("CounterA receive CountUp Command", replyTo)
-      value = value + num
       val ran = RandomNum.generate()
       println(s"ran ${ran.value}")
       if (ran.isMultipleOf5) () // noReply
@@ -43,7 +42,7 @@ object CounterB {
 
   case object FailedCountUp extends CounterBReply
 
-  private var value = 0
+  var value = 0
 
   def apply(): Behavior[CounterBCommand] = {
     Behaviors.receiveMessage { case CountUp(num, replyTo) =>
