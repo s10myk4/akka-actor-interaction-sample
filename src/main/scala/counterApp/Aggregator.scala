@@ -10,6 +10,7 @@ object Aggregator {
 
   sealed trait Command
   case object ExecCommands extends Command
+  case class Exec[T](f: ActorRef[T] => Unit)
 
   private case object ReceiveTimeout extends Command
   private case class WrappedReply[T](reply: T) extends Command
@@ -27,6 +28,7 @@ object Aggregator {
       Behaviors.receiveMessage {
         case ExecCommands =>
           println("Aggregator receive ExecCommands")
+          context.messageAdapter[Reply](WrappedReply(_))
           execCommands(context.messageAdapter[Reply](WrappedReply(_)))
           Behaviors.same
         case WrappedReply(reply) =>
