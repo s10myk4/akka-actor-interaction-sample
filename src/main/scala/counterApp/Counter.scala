@@ -4,6 +4,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ ActorRef, Behavior }
 
 object CounterA {
+
   sealed trait CounterACommand
 
   final case class CountUp(num: Int, replyTo: ActorRef[CounterAReply]) extends CounterACommand
@@ -32,6 +33,7 @@ object CounterA {
 }
 
 object CounterB {
+
   sealed trait CounterBCommand
 
   final case class CountUp(num: Int, replyTo: ActorRef[CounterBReply]) extends CounterBCommand

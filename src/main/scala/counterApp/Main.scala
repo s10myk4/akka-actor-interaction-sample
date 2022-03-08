@@ -2,20 +2,35 @@ package counterApp
 
 import akka.actor.typed.scaladsl.AskPattern.Askable
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.{ActorSystem, Behavior, Scheduler}
+import akka.actor.typed.{ ActorSystem, Behavior, Scheduler }
 import akka.util.Timeout
+import counterApp.CounterA.CounterACommand
+import counterApp.CounterB.CounterBCommand
 import counterApp.TransactionalCountUp.ExecCommands
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object Main extends App {
 
   def apply(): Behavior[Any] = Behaviors.setup { ctx =>
-    val refA  = ctx.spawn(CounterA(), "counter-a")
-    val refB  = ctx.spawn(CounterB(), "counter-b")
-    val refTx = ctx.spawn(TransactionalCountUp.execCommand(refA, refB), "tx-controller")
+    val supervisorActorOfCounterA = ctx.spawn(
+      SupervisorActor[CounterACommand](
+        childActorName = "counter-a",
+        childActorBehavior = CounterA()
+      ),
+      "counter-a-supervisor"
+    )
+    val supervisorActorOfCounterB = ctx.spawn(
+      SupervisorActor[CounterBCommand](
+        childActorName = "counter-b",
+        childActorBehavior = CounterB()
+      ),
+      "counter-b-supervisor"
+    )
+    val refTx =
+      ctx.spawn(TransactionalCountUp.execCommand(supervisorActorOfCounterA, supervisorActorOfCounterB), "tx-controller")
 
     implicit val timeout: Timeout     = Timeout(10.seconds)
     implicit val s: Scheduler         = ctx.system.scheduler
