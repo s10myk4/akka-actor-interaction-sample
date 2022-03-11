@@ -10,7 +10,7 @@
         <appender-ref ref="STDOUT" />
     </appender>
 
-    <logger name="counterApp" level="DEBUG"/>
+    <logger name="counterApp" level="INFO"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT_ASYNC"/>
