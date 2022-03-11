@@ -2,8 +2,11 @@ package counterApp
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ ActorRef, Behavior }
+import org.slf4j.LoggerFactory
 
 object CounterA {
+
+  private val logger = LoggerFactory.getLogger(getClass.getName)
 
   sealed trait CounterACommand
 
@@ -19,9 +22,9 @@ object CounterA {
 
   def apply(): Behavior[CounterACommand] = {
     Behaviors.receiveMessage { case CountUp(num, replyTo) =>
-      println("CounterA receive CountUp Command", replyTo)
+      logger.debug("CounterA receive CountUp Command", replyTo)
       val ran = RandomNum.generate()
-      println(s"ran ${ran.value}")
+      logger.debug(s"ran ${ran.value}")
       if (ran.isMultipleOf5) () // noReply
       else if (ran.isEven) {
         value = value + num
@@ -33,6 +36,8 @@ object CounterA {
 }
 
 object CounterB {
+
+  private val logger = LoggerFactory.getLogger(getClass.getName)
 
   sealed trait CounterBCommand
 
@@ -48,9 +53,9 @@ object CounterB {
 
   def apply(): Behavior[CounterBCommand] = {
     Behaviors.receiveMessage { case CountUp(num, replyTo) =>
-      println("CounterB receive CountUp Command", replyTo)
+      logger.debug("CounterB receive CountUp Command", replyTo)
       val ran = RandomNum.generate()
-      println(s"ran ${ran.value}")
+      logger.debug(s"ran ${ran.value}")
       if (ran.isMultipleOf5) () // noReply
       else if (ran.isEven) {
         value = value + num

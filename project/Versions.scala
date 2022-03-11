@@ -1,7 +1,5 @@
 object Versions {
-  object akka {
-    val actor = "2.6.18"
-  }
+  val akka = "2.6.18"
 
   object slf4j {
     val api = "1.7.33"

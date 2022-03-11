@@ -10,9 +10,11 @@ scalacOptions ++= Seq(
 val root = (project in file("."))
   .settings(
     libraryDependencies ++= Seq(
-      "com.typesafe.akka" %% "akka-actor-typed" % Versions.akka.actor,
-      "org.slf4j"          % "slf4j-api"        % Versions.slf4j.api,
-      "ch.qos.logback"     % "logback-classic"  % Versions.logback excludeAll (
+      "com.typesafe.akka" %% "akka-actor-typed"         % Versions.akka,
+      "com.typesafe.akka" %% "akka-persistence-typed"   % Versions.akka,
+      "com.typesafe.akka" %% "akka-persistence-testkit" % Versions.akka % Test,
+      "org.slf4j"          % "slf4j-api"                % Versions.slf4j.api,
+      "ch.qos.logback"     % "logback-classic"          % Versions.logback excludeAll (
         ExclusionRule("org.slf4j")
       )
     )

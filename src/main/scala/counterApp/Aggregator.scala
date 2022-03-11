@@ -21,18 +21,18 @@ object Aggregator {
       replyTo: ActorRef[Aggregate],
       aggregateReplies: Seq[Reply] => Aggregate,
       timeout: Option[FiniteDuration]
-  ): Behavior[Command] = Behaviors.setup { context =>
-    timeout.foreach(t => context.setReceiveTimeout(t, ReceiveTimeout))
+  ): Behavior[Command] = Behaviors.setup { ctx =>
+    timeout.foreach(t => ctx.setReceiveTimeout(t, ReceiveTimeout))
 
     def collect(replies: Seq[Reply]): Behavior[Command] = {
       Behaviors.receiveMessage {
         case ExecCommands =>
-          println("Aggregator receive ExecCommands")
-          context.messageAdapter[Reply](WrappedReply(_))
-          execCommands(context.messageAdapter[Reply](WrappedReply(_)))
+          ctx.log.debug("Aggregator receive ExecCommands")
+          ctx.messageAdapter[Reply](WrappedReply(_))
+          execCommands(ctx.messageAdapter[Reply](WrappedReply(_)))
           Behaviors.same
         case WrappedReply(reply) =>
-          println(s"Aggregator receive WrappedReply ${reply.asInstanceOf[Reply]}")
+          ctx.log.debug(s"Aggregator receive WrappedReply ${reply.asInstanceOf[Reply]}")
           val newReplies = replies :+ reply.asInstanceOf[Reply]
           if (newReplies.size == expectedReplies) {
             val result = aggregateReplies(newReplies)

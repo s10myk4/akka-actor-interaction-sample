@@ -7,7 +7,7 @@ import akka.util.Timeout
 import counterApp.CounterA.CounterACommand
 import counterApp.CounterB.CounterBCommand
 import counterApp.coordinater.BiCountUpCoordinateActorProtocol.ExecCommands
-import counterApp.coordinater.{ BiCountUpCoordinateActor, BiCountUpCoordinateActorProtocol }
+import counterApp.coordinater.{ BiCountUpCoordinateActorOfAkkaPersistence, BiCountUpCoordinateActorProtocol }
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
@@ -32,8 +32,9 @@ object Main extends App {
     )
     val refTx =
       ctx.spawn(
-        BiCountUpCoordinateActor.execCommand(supervisorActorOfCounterA, supervisorActorOfCounterB),
-        "tx-controller"
+        BiCountUpCoordinateActorOfAkkaPersistence(supervisorActorOfCounterA, supervisorActorOfCounterB),
+        // BiCountUpCoordinateActor.execCommand(supervisorActorOfCounterA, supervisorActorOfCounterB),
+        "bi-count-up-coordinator"
       )
 
     implicit val timeout: Timeout     = Timeout(10.seconds)
