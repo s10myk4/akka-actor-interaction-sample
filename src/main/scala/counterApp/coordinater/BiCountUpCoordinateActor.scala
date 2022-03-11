@@ -1,37 +1,16 @@
-package counterApp
+package counterApp.coordinater
 
 import akka.actor.typed.scaladsl.{ ActorContext, Behaviors }
 import akka.actor.typed.{ ActorRef, Behavior }
 import counterApp.CounterA.CounterACommand
 import counterApp.CounterB.CounterBCommand
+import counterApp.{ Aggregator, CounterA, CounterB }
 
 import scala.concurrent.duration.DurationInt
 
-object TransactionalCountUp {
+object BiCountUpCoordinateActor {
 
-  sealed trait Command
-
-  final case class ExecCommands(num: Int, replyTo: ActorRef[ExternalReply]) extends Command
-
-  final case class AggregateReply(replies: Seq[InternalReply]) extends Command
-
-  sealed trait Reply
-
-  sealed trait ExternalReply extends Reply
-
-  case object Success extends ExternalReply
-  case object Failed extends ExternalReply
-
-  sealed trait InternalReply extends Reply
-
-  sealed trait SuccessfulReply extends InternalReply
-  private final case class SuccessfulCounterAReply(num: Int) extends SuccessfulReply
-  private final case class SuccessfulCounterBReply(num: Int) extends SuccessfulReply
-
-  sealed trait FailedReply extends InternalReply
-  private case object FailedCounterAReply extends FailedReply
-  private case object FailedCounterBReply extends FailedReply
-
+  import counterApp.coordinater.BiCountUpCoordinateActorProtocol._
   private val expectedReplyNum = 2
 
   final case class RetryCount(private val value: Int, private val limitNum: Int) {
@@ -100,6 +79,7 @@ object TransactionalCountUp {
         )
         println("CounterAへコマンドをリトライ")
         aggregatorRef ! Aggregator.ExecCommands
+
         retrying(counterA, counterB, Left(counterA), cmd.num, cmd.replyTo, RetryCount.init(retryLimitNum))
       case _ =>
         Behaviors.unhandled
@@ -108,6 +88,8 @@ object TransactionalCountUp {
 
   private val retryLimitNum = 3
 
+  // Stateオブジェクトからこのパラメータを関数で取得できるようにする
+  // 最終的にその関数がpersistence actorから状態を取得してくる
   private def retrying(
       counterA: ActorRef[CounterACommand],
       counterB: ActorRef[CounterBCommand],
@@ -174,7 +156,7 @@ object TransactionalCountUp {
       expectedReplies: Int
   ): ActorRef[Aggregator.Command] =
     ctx.spawnAnonymous(
-      Aggregator[Any, TransactionalCountUp.AggregateReply](
+      Aggregator[Any, AggregateReply](
         execCommands,
         expectedReplies,
         ctx.self,
@@ -183,7 +165,7 @@ object TransactionalCountUp {
       )
     )
 
-  private def mapInternalReplies(replies: Seq[Any]): TransactionalCountUp.AggregateReply = {
+  private def mapInternalReplies(replies: Seq[Any]): AggregateReply = {
     AggregateReply(
       replies.map {
         case CounterA.SuccessfulCountUp(num, _) => SuccessfulCounterAReply(num)

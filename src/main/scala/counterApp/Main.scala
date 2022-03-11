@@ -6,7 +6,8 @@ import akka.actor.typed.{ ActorSystem, Behavior, Scheduler }
 import akka.util.Timeout
 import counterApp.CounterA.CounterACommand
 import counterApp.CounterB.CounterBCommand
-import counterApp.TransactionalCountUp.ExecCommands
+import counterApp.coordinater.BiCountUpCoordinateActorProtocol.ExecCommands
+import counterApp.coordinater.{ BiCountUpCoordinateActor, BiCountUpCoordinateActorProtocol }
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
@@ -30,7 +31,10 @@ object Main extends App {
       "counter-b-supervisor"
     )
     val refTx =
-      ctx.spawn(TransactionalCountUp.execCommand(supervisorActorOfCounterA, supervisorActorOfCounterB), "tx-controller")
+      ctx.spawn(
+        BiCountUpCoordinateActor.execCommand(supervisorActorOfCounterA, supervisorActorOfCounterB),
+        "tx-controller"
+      )
 
     implicit val timeout: Timeout     = Timeout(10.seconds)
     implicit val s: Scheduler         = ctx.system.scheduler
@@ -40,11 +44,11 @@ object Main extends App {
       val num = line.toInt
       require(num > 0)
       refTx
-        .ask[TransactionalCountUp.ExternalReply](replyTo => ExecCommands(num, replyTo))
+        .ask[BiCountUpCoordinateActorProtocol.ExternalReply](replyTo => ExecCommands(num, replyTo))
         .onComplete {
-          case Success(_: TransactionalCountUp.Success.type) =>
+          case Success(_: BiCountUpCoordinateActorProtocol.Success.type) =>
             println(s"Success / counterA: ${CounterA.value} / counterB: ${CounterB.value}")
-          case Success(_: TransactionalCountUp.Failed.type) =>
+          case Success(_: BiCountUpCoordinateActorProtocol.Failed.type) =>
             println("Failed")
           case Failure(ex) =>
             println("Failed", ex.getMessage)
